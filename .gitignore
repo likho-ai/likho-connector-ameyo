@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+
+# Personal and secret settings on this machine; never committed.
+.env
+.env.local
+.env.*.local
+# The real queries of a company (table and campaign names); only the examples are committed.
+queries/*.local.sql

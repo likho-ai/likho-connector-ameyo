@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+dist
+test
+*.md
+.env
+.env.local
+.env.*.local
+queries/*.local.sql

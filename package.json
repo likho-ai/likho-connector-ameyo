@@ -1,0 +1,36 @@
+{
+  "name": "likho-connector-ameyo",
+  "version": "0.1.0",
+  "description": "The dialer connector of Likho: fetches calls from Ameyo (by a schedule or by id), uploads them to likho-api, and writes transcripts back to the CRM",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=24" },
+  "bin": { "likho-connector-ameyo": "./dist/cli.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/cli.js serve",
+    "dev": "tsx src/cli.ts serve",
+    "lint": "oxlint src/ test/ && prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "mssql": "^11.0.1",
+    "nats": "^2.29.3",
+    "pg": "^8.23.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/mssql": "^9.1.7",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.6",
+    "oxlint": "^1.58.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
+}

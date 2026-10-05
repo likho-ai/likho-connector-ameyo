@@ -84,11 +84,30 @@ export class Importer {
       }
     }
 
-    const fetched = await this.ameyo.download(externalId);
+    let fetched = await this.ameyo.download(externalId);
+    let audioFrom = 'live';
+    if (
+      (fetched.kind === 'no_recording' || fetched.kind === 'not_found') &&
+      this.ameyo.hasArchive &&
+      details?.callId
+    ) {
+      // The live server keeps a week or two; an older call is on the archiver, by its leg's id.
+      const archived = await this.ameyo.downloadArchived(details.callId);
+      if (archived.kind === 'audio') {
+        fetched = archived;
+        audioFrom = 'archive';
+      } else {
+        this.log.info('not on the archiver either', {
+          call: externalId,
+          leg: details.callId,
+          reason: archived.reason,
+        });
+      }
+    }
     if (fetched.kind !== 'audio') return this.fail(request, fetched, details);
     this.options.metrics?.downloadBytes.add(fetched.bytes.byteLength);
 
-    const attributes = this.attributes(details);
+    const attributes = { ...this.attributes(details), audioFrom };
     let uploaded;
     try {
       uploaded = await this.likho.upload({

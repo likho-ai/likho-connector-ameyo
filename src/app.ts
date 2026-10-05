@@ -9,13 +9,13 @@ import { campaignsOf, type Config } from './config.js';
 import { openDialerDb, type DialerDb } from './dialer.js';
 import { Importer } from './importer.js';
 import { hinglishText, LikhoApi } from './likho.js';
-import { describe, type Logger } from './log.js';
+import { type Logger } from './log.js';
 import { Metrics } from './metrics.js';
 import { Schedule } from './schedule.js';
 import { State } from './state.js';
 import { openWriteBack, type WriteBack } from './writeback.js';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 export interface Parts {
   state: State;
@@ -37,6 +37,8 @@ export async function assemble(config: Config, log: Logger, fetchImpl?: typeof f
     hashKey: config.AMEYO_HASH_KEY,
     policyName: config.AMEYO_POLICY_NAME,
     requestingHost: config.AMEYO_REQUESTING_HOST,
+    archiveUrl: config.AMEYO_ARCHIVAL_URL,
+    archiveFileId: config.AMEYO_ARCHIVAL_FILE_ID,
     timeoutMs: config.AMEYO_TIMEOUT_SECONDS * 1000,
     fetchImpl,
   });

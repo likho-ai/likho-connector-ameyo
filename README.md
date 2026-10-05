@@ -42,6 +42,7 @@ AMEYO_VOICELOG_URL=https://<dialer>/ameyowebaccess
 AMEYO_HASH_KEY=...                       # the dialer's API credentials
 AMEYO_POLICY_NAME=...
 AMEYO_REQUESTING_HOST=...
+AMEYO_ARCHIVAL_URL=http://<archiver>/dacx/download   # optional: older recordings, by the leg's call_id
 DIALER_DATABASE_URL=postgres://...       # read only; optional: without it a call is fetched by its id alone
 CALLS_QUERY_FILE=queries/calls.local.sql
 CALL_QUERY_FILE=queries/call.local.sql
@@ -56,7 +57,8 @@ Settings: `.env.development`, `.env.staging`, `.env.production` (read as the oth
 | `NATS_CONNECT_TIMEOUT_SECONDS` | `120` | How long the start keeps trying to reach NATS before giving up |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | Also push the metrics there (OTLP/HTTP); `GET /metrics` (calls asked for by outcome and how long they took, bytes fetched, events handled) is always on |
 | `LIKHO_API_URL`, `LIKHO_API_KEY`, `WORKSPACE_ID`, `SOURCE` | `http://localhost:8080`, –, –, `ameyo` | Where the calls go; requests of another workspace or source are not this connector's |
-| `AMEYO_VOICELOG_URL`, `AMEYO_HASH_KEY`, `AMEYO_POLICY_NAME`, `AMEYO_REQUESTING_HOST`, `AMEYO_TIMEOUT_SECONDS` | –, 120 | The dialer's API |
+| `AMEYO_VOICELOG_URL`, `AMEYO_HASH_KEY`, `AMEYO_POLICY_NAME`, `AMEYO_REQUESTING_HOST`, `AMEYO_TIMEOUT_SECONDS` | –, 120 | The dialer's live voice-log API (the last week or two of recordings) |
+| `AMEYO_ARCHIVAL_URL`, `AMEYO_ARCHIVAL_FILE_ID` | –, `123` | The voice-log archiver, asked by the leg's `call_id` (from the dialer's database) when the live server has no recording; the recording's `audioFrom` attribute says `live` or `archive`. Empty = not looked for |
 | `DIALER_DATABASE_URL`, `CALLS_QUERY_FILE`, `CALL_QUERY_FILE` | –, the examples | The dialer's reporting database and the two queries |
 | `SCHEDULE_ENABLED`, `POLL_INTERVAL_SECONDS`, `BATCH_LIMIT`, `DAILY_LIMIT`, `SCHEDULE_START` | off, 300, 50, 200, '' | The schedule and its budget; `SCHEDULE_START` is the `call_time` text it begins at |
 | `CAMPAIGNS`, `MIN_TALK_SECONDS`, `PHONE_DIGITS` | all, 20, 4 | The policy; how many digits of a phone number are kept |

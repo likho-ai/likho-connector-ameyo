@@ -111,6 +111,37 @@ describe.skipIf(!stackUp)('fetching a call into Likho', () => {
     expect(likho.jobs).toEqual([recording.id]);
   });
 
+  it('asks the archiver by the leg’s id when the live server has no recording any more', async () => {
+    const withArchive = new Importer(
+      new AmeyoClient({ baseUrl: dialer.url, archiveUrl: dialer.archiveUrl, timeoutMs: 5_000 }),
+      new LikhoApi(likho.url, 'lk_test'),
+      state,
+      dialerWith([call('d000-0a1b2c3d-vce-0009', { callId: 'd000-0a1b2c3d-vcall-0009', campaign: 'Old' })]),
+      { source: 'ameyo', phoneDigits: 4 },
+      silent,
+    );
+    // The live server answers 404; the archiver has the leg.
+    dialer.archived.set('d000-0a1b2c3d-vcall-0009', { body: Uint8Array.from([...MP3, 9, 9]) });
+    const outcome = await withArchive.run({
+      externalId: 'd000-0a1b2c3d-vce-0009',
+      workspaceId: WORKSPACE,
+      requestedBy: 'cli',
+    });
+    expect(outcome).toMatchObject({ ok: true, existing: false });
+    expect(dialer.askedArchive).toContain('d000-0a1b2c3d-vcall-0009');
+    const recording = likho.recordings.find((r) => r.externalId === 'd000-0a1b2c3d-vce-0009')!;
+    expect(recording.attributes).toMatchObject({ campaign: 'Old', audioFrom: 'archive' });
+
+    // Neither has it: the failure names the live server's answer.
+    expect(
+      await withArchive.run({
+        externalId: 'd000-0a1b2c3d-vce-0010',
+        workspaceId: WORKSPACE,
+        requestedBy: 'cli',
+      }),
+    ).toMatchObject({ ok: false, code: 'not_found' });
+  });
+
   it('reports why a call could not be fetched, and whether to try later', async () => {
     dialer.answers.set('d000-0a1b2c3d-vce-0002', { body: '', type: 'audio/mpeg' });
     expect(

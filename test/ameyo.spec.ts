@@ -12,10 +12,30 @@ describe('the dialer’s voice-log API', () => {
       hashKey: 'k',
       policyName: 'p',
       requestingHost: 'h',
+      archiveUrl: dialer.archiveUrl,
       timeoutMs: 5_000,
     });
   });
   afterAll(() => dialer.close());
+
+  it('fetches an older recording from the archiver by the leg’s call id, with no credentials', async () => {
+    expect(client.archiveUrl('d000-0a1b2c3d-vcall-0009')).toBe(
+      `${dialer.archiveUrl}?dacxURI=dacx://voicelog-archiver-storage-path/d000-0a1b2c3d-vcall-0009&fileId=123&errorHandle=true&mediaType=AUDIO`,
+    );
+    dialer.archived.set('d000-0a1b2c3d-vcall-0009', { body: MP3 });
+    expect(await client.downloadArchived('d000-0a1b2c3d-vcall-0009')).toMatchObject({
+      kind: 'audio',
+      contentType: 'audio/mpeg',
+    });
+    expect(dialer.askedArchive).toEqual(['d000-0a1b2c3d-vcall-0009']);
+    expect(await client.downloadArchived('d000-0a1b2c3d-vcall-0010')).toMatchObject({ kind: 'not_found' });
+    const none = new AmeyoClient({ baseUrl: dialer.url });
+    expect(none.hasArchive).toBe(false);
+    expect(await none.downloadArchived('d000-0a1b2c3d-vcall-0009')).toMatchObject({
+      kind: 'unavailable',
+      reason: /AMEYO_ARCHIVAL_URL/,
+    });
+  });
 
   it('builds the download address in the dialer’s own form', () => {
     expect(client.url('d000-0a1b2c3d-vce-0001')).toBe(

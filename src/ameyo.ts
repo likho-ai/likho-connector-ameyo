@@ -4,7 +4,12 @@
  *   GET <AMEYO_VOICELOG_URL>/command?command=downloadVoiceLog&data={'crtObjectId':'<id>','targetFormat':'mp3'}
  *   headers: hash-key, policy-name, requesting-host (the dialer's API credentials)
  *
- * The dialer answers with the audio, or with something that is not audio: an empty body, the
+ * That is the live server, which keeps the last week or two. Older recordings sit on the
+ * archiver, fetched by the leg's call_id with a plain GET and no credentials:
+ *
+ *   GET <AMEYO_ARCHIVAL_URL>?dacxURI=dacx://voicelog-archiver-storage-path/<call_id>&fileId=<n>&errorHandle=true&mediaType=AUDIO
+ *
+ * Either answers with the audio, or with something that is not audio: an empty body, the
  * literal "null" (a wrong key), an HTML page (no session), or JSON with a message. Each of those
  * is turned into a reason a person understands and a code the import carries.
  */
@@ -18,6 +23,9 @@ export interface AmeyoOptions {
   hashKey?: string;
   policyName?: string;
   requestingHost?: string;
+  /** The archiver; empty = older recordings are not looked for. */
+  archiveUrl?: string;
+  archiveFileId?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }
@@ -37,7 +45,19 @@ export class AmeyoClient {
     return `${this.options.baseUrl.replace(/\/+$/, '')}/command?command=downloadVoiceLog&data=${encodeURIComponent(data)}`;
   }
 
-  /** Fetches the recording of one interaction. */
+  /** The address an archived recording is downloaded from, by the leg's call id. */
+  archiveUrl(callId: string): string {
+    const base = (this.options.archiveUrl ?? '').replace(/\/+$/, '');
+    const fileId = encodeURIComponent(this.options.archiveFileId || '123');
+    return `${base}?dacxURI=dacx://voicelog-archiver-storage-path/${encodeURIComponent(callId)}&fileId=${fileId}&errorHandle=true&mediaType=AUDIO`;
+  }
+
+  /** Whether an archiver is configured. */
+  get hasArchive(): boolean {
+    return Boolean(this.options.archiveUrl);
+  }
+
+  /** Fetches the recording of one interaction from the live server. */
   async download(crtObjectId: string): Promise<FetchResult> {
     if (!ID_PATTERN.test(crtObjectId))
       return { kind: 'rejected', reason: 'The call id is not in the dialer’s form.' };
@@ -47,10 +67,22 @@ export class AmeyoClient {
     if (this.options.hashKey) headers['hash-key'] = this.options.hashKey;
     if (this.options.policyName) headers['policy-name'] = this.options.policyName;
     if (this.options.requestingHost) headers['requesting-host'] = this.options.requestingHost;
+    return this.fetchAudio(this.url(crtObjectId), headers);
+  }
 
+  /** Fetches the recording of one call leg from the archiver (older calls). */
+  async downloadArchived(callId: string): Promise<FetchResult> {
+    if (!ID_PATTERN.test(callId))
+      return { kind: 'rejected', reason: 'The call id is not in the dialer’s form.' };
+    if (!this.hasArchive)
+      return { kind: 'unavailable', reason: 'The archiver’s address is not set (AMEYO_ARCHIVAL_URL).' };
+    return this.fetchAudio(this.archiveUrl(callId), { accept: 'audio/mpeg, audio/*;q=0.9, */*;q=0.1' });
+  }
+
+  private async fetchAudio(url: string, headers: Record<string, string>): Promise<FetchResult> {
     let response: Response;
     try {
-      response = await this.fetchImpl(this.url(crtObjectId), {
+      response = await this.fetchImpl(url, {
         headers,
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 120_000),
       });

@@ -47,6 +47,13 @@ export const ConfigSchema = z.object({
   AMEYO_POLICY_NAME: z.string().default(''),
   AMEYO_REQUESTING_HOST: z.string().default(''),
   AMEYO_TIMEOUT_SECONDS: seconds.default(120),
+  /**
+   * The dialer's voice-log archiver, for recordings the live server no longer has: a plain GET
+   * of <url>?dacxURI=dacx://voicelog-archiver-storage-path/<call_id>&fileId=...&mediaType=AUDIO,
+   * by the leg's call_id (from the dialer's database). Empty = not looked for.
+   */
+  AMEYO_ARCHIVAL_URL: z.string().default(''),
+  AMEYO_ARCHIVAL_FILE_ID: z.string().default('123'),
 
   /**
    * The dialer's reporting database (PostgreSQL), read only, for the call details and the

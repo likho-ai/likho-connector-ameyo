@@ -1,6 +1,6 @@
 {
   "name": "likho-connector-ameyo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The dialer connector of Likho: fetches calls from Ameyo (by a schedule or by id), uploads them to likho-api, and writes transcripts back to the CRM",
   "private": true,
   "type": "module",

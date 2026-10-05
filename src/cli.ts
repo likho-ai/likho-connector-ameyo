@@ -140,8 +140,13 @@ async function main(): Promise<number> {
           checks.push([
             'dialer database',
             async () => {
-              await dialer.callsSince('0000', 1);
-              return 'ok';
+              // One call by id is cheap on any table; the calls query is tried from the schedule's
+              // start when there is one (from the beginning of time it can take minutes on a big table).
+              await dialer.call('check-0000');
+              if (config.SCHEDULE_START) await dialer.callsSince(config.SCHEDULE_START, 1);
+              return config.SCHEDULE_START
+                ? `ok (both queries answer; the schedule would start at ${config.SCHEDULE_START})`
+                : 'ok (the call query answers; set SCHEDULE_START to try the calls query too)';
             },
           ]);
         }

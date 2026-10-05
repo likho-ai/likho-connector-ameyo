@@ -14,22 +14,37 @@ export const MP3 = Uint8Array.from([
 type Answer = { status?: number; type?: string; body: Uint8Array | string };
 
 export class FakeAmeyo {
-  /** crt_object_id → what to answer; a missing id answers 404. */
+  /** crt_object_id → what the live server answers; a missing id answers 404. */
   answers = new Map<string, Answer>();
+  /** call_id → what the archiver answers; a missing id answers 404. */
+  archived = new Map<string, Answer>();
   asked: { id: string; headers: Record<string, string | undefined> }[] = [];
+  askedArchive: string[] = [];
   down = false;
   server!: Server;
   url = '';
+  archiveUrl = '';
 
   async start(): Promise<this> {
     this.server = createServer((request, response) => this.handle(request, response));
     await new Promise<void>((resolve) => this.server.listen(0, '127.0.0.1', resolve));
-    this.url = `http://127.0.0.1:${(this.server.address() as AddressInfo).port}/ameyowebaccess`;
+    const origin = `http://127.0.0.1:${(this.server.address() as AddressInfo).port}`;
+    this.url = `${origin}/ameyowebaccess`;
+    this.archiveUrl = `${origin}/dacx/download`;
     return this;
   }
 
   private handle(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? '/', 'http://x');
+    if (url.pathname === '/dacx/download') {
+      const match = /^dacx:\/\/voicelog-archiver-storage-path\/(.+)$/.exec(
+        url.searchParams.get('dacxURI') ?? '',
+      );
+      const callId = match?.[1] ?? '';
+      this.askedArchive.push(callId);
+      this.answer(this.archived.get(callId), response);
+      return;
+    }
     if (
       url.pathname !== '/ameyowebaccess/command' ||
       url.searchParams.get('command') !== 'downloadVoiceLog'
@@ -46,11 +61,14 @@ export class FakeAmeyo {
         policy: request.headers['policy-name'] as string,
       },
     });
+    this.answer(this.answers.get(id), response);
+  }
+
+  private answer(answer: Answer | undefined, response: ServerResponse) {
     if (this.down) {
       response.writeHead(503).end('down');
       return;
     }
-    const answer = this.answers.get(id);
     if (!answer) {
       response.writeHead(404).end();
       return;

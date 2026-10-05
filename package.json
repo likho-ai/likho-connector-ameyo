@@ -1,13 +1,17 @@
 {
   "name": "likho-connector-ameyo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The dialer connector of Likho: fetches calls from Ameyo (by a schedule or by id), uploads them to likho-api, and writes transcripts back to the CRM",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "packageManager": "pnpm@10.34.6",
-  "bin": { "likho-connector-ameyo": "./dist/cli.js" },
+  "bin": {
+    "likho-connector-ameyo": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/cli.js serve",
@@ -19,6 +23,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/exporter-metrics-otlp-http": "0.222.0",
+    "@opentelemetry/exporter-prometheus": "0.222.0",
+    "@opentelemetry/resources": "2.11.0",
+    "@opentelemetry/sdk-metrics": "2.11.0",
     "mssql": "^11.0.1",
     "nats": "^2.29.3",
     "pg": "^8.23.1",

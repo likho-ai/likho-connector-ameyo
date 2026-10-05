@@ -10,11 +10,12 @@ import { openDialerDb, type DialerDb } from './dialer.js';
 import { Importer } from './importer.js';
 import { hinglishText, LikhoApi } from './likho.js';
 import { describe, type Logger } from './log.js';
+import { Metrics } from './metrics.js';
 import { Schedule } from './schedule.js';
 import { State } from './state.js';
 import { openWriteBack, type WriteBack } from './writeback.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 export interface Parts {
   state: State;
@@ -22,6 +23,7 @@ export interface Parts {
   ameyo: AmeyoClient;
   dialer: DialerDb | null;
   importer: Importer;
+  metrics: Metrics;
   close(): Promise<void>;
 }
 
@@ -41,12 +43,13 @@ export async function assemble(config: Config, log: Logger, fetchImpl?: typeof f
   const dialer = config.DIALER_DATABASE_URL
     ? openDialerDb(config.DIALER_DATABASE_URL, config.CALLS_QUERY_FILE, config.CALL_QUERY_FILE)
     : null;
+  const metrics = new Metrics(VERSION, config.OTEL_EXPORTER_OTLP_ENDPOINT, log);
   const importer = new Importer(
     ameyo,
     likho,
     state,
     dialer,
-    { source: config.SOURCE, phoneDigits: config.PHONE_DIGITS },
+    { source: config.SOURCE, phoneDigits: config.PHONE_DIGITS, metrics },
     log,
   );
   return {
@@ -55,9 +58,11 @@ export async function assemble(config: Config, log: Logger, fetchImpl?: typeof f
     ameyo,
     dialer,
     importer,
+    metrics,
     async close() {
       await dialer?.close();
       await state.close();
+      await metrics.close();
     },
   };
 }
@@ -76,6 +81,7 @@ export class App {
   ) {
     this.parts = parts;
     this.bus = new Bus(config.NATS_URL, config.CONSUMER_GROUP, log);
+    this.bus.handled = (subject, outcome) => parts.metrics.eventsHandled.add(1, { subject, outcome });
   }
 
   static async start(config: Config, log: Logger, fetchImpl?: typeof fetch): Promise<App> {
@@ -92,7 +98,7 @@ export class App {
 
   private async run(): Promise<void> {
     const { config, log, parts } = this;
-    await this.bus.connect();
+    await this.bus.connect(config.NATS_CONNECT_TIMEOUT_SECONDS);
     if (config.WRITEBACK_ENABLED)
       this.writeBack = await openWriteBack(config.CRM_DATABASE_URL, config.WRITEBACK_QUERY_FILE);
 
@@ -146,6 +152,10 @@ export class App {
         response
           .writeHead(ready ? 200 : 503, { 'content-type': 'text/plain' })
           .end(ready ? 'ready\n' : 'not ready\n');
+        return;
+      }
+      if (request.url === '/metrics') {
+        parts.metrics.scrape(request, response);
         return;
       }
       response.writeHead(404).end();

@@ -63,6 +63,8 @@ export class Bus {
   private manager: JetStreamManager | null = null;
   private readonly consumers: Consumer[] = [];
   private readonly durables: string[] = [];
+  /** Told what became of every event taken: ok, retry, dropped (for the metrics). */
+  handled: ((subject: string, outcome: 'ok' | 'retry' | 'dropped') => void) | null = null;
 
   constructor(
     private readonly url: string,
@@ -70,18 +72,46 @@ export class Bus {
     private readonly log: Logger,
   ) {}
 
-  async connect(): Promise<void> {
-    this.connection = await connect({ servers: this.url, name: SOURCE, maxReconnectAttempts: -1 });
+  /**
+   * Connects, trying again while NATS is not there yet (it may be starting at the same time),
+   * for `timeoutSeconds`; once connected, the client reconnects on its own.
+   */
+  async connect(timeoutSeconds = 0): Promise<void> {
+    const deadline = Date.now() + timeoutSeconds * 1000;
+    let wait = 1000;
+    for (;;) {
+      try {
+        await this.open();
+        this.log.info(`connected to ${this.url}`);
+        return;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        await this.connection?.close().catch(() => undefined);
+        this.connection = null;
+        if (Date.now() + wait > deadline) {
+          throw new Error(`the event bus at ${this.url} did not answer in time: ${reason}`);
+        }
+        this.log.warn(`event bus not ready (${reason}); trying again in ${wait / 1000} s`);
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        wait = Math.min(wait * 2, 10_000);
+      }
+    }
+  }
+
+  private async open(): Promise<void> {
+    this.connection = await connect({
+      servers: this.url,
+      name: SOURCE,
+      maxReconnectAttempts: -1,
+      timeout: 5_000,
+    });
     this.jetstream = this.connection.jetstream();
     this.manager = await this.connection.jetstreamManager();
     try {
       await this.manager.streams.info('LIKHO');
     } catch {
-      throw new Error(
-        `stream LIKHO does not exist on ${this.url}; create the streams first (likho-infra: scripts/up.sh)`,
-      );
+      throw new Error('stream LIKHO does not exist; create the streams first (likho-infra: scripts/up.sh)');
     }
-    this.log.info(`connected to ${this.url}`);
   }
 
   get connected(): boolean {
@@ -136,16 +166,23 @@ export class Bus {
         error: describe(error),
       });
       message.term();
+      this.handled?.(message.subject, 'dropped');
       return;
     }
     try {
       await handler(parsed);
       message.ack();
+      this.handled?.(message.subject, 'ok');
     } catch (error) {
       const attempt = message.info.redeliveryCount;
       this.log.warn(`${parsed.type} ${parsed.id} attempt ${attempt} failed`, { error: describe(error) });
-      if (attempt >= 5) message.term();
-      else message.nak(Math.min(attempt, 5) * 10_000);
+      if (attempt >= 5) {
+        message.term();
+        this.handled?.(message.subject, 'dropped');
+      } else {
+        message.nak(Math.min(attempt, 5) * 10_000);
+        this.handled?.(message.subject, 'retry');
+      }
     }
   }
 

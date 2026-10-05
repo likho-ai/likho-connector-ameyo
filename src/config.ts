@@ -26,8 +26,12 @@ export const ConfigSchema = z.object({
     .string()
     .default('postgres://likho_connector:likho_connector@localhost:5433/likho_connector'),
   NATS_URL: z.string().default('nats://localhost:4222'),
+  /** How long the start keeps trying to reach NATS before giving up. */
+  NATS_CONNECT_TIMEOUT_SECONDS: seconds.default(120),
   CONSUMER_GROUP: z.string().default('likho-connector-ameyo'),
   CONSUMERS_ENABLED: flag.default(true),
+  /** Metrics are always at GET /metrics; set this to also push them (OTLP/HTTP). */
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default(''),
 
   /** likho-api, with an API key of the workspace the calls go to. */
   LIKHO_API_URL: z.string().default('http://localhost:8080'),

@@ -72,6 +72,9 @@ describe.skipIf(!stackUp)('the connector on the bus', () => {
   it('answers /healthz and /readyz', async () => {
     expect((await fetch(`http://${app.address()}/healthz`)).status).toBe(200);
     expect((await fetch(`http://${app.address()}/readyz`)).status).toBe(200);
+    const metrics = await fetch(`http://${app.address()}/metrics`);
+    expect(metrics.status).toBe(200);
+    expect(await metrics.text()).toContain('likho_connector_');
   });
 
   it('takes an import request, fetches the call, and answers on the bus', async () => {

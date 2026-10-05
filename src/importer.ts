@@ -11,6 +11,7 @@ import { AmeyoClient, type FetchResult } from './ameyo.js';
 import { maskPhone, type CallRecord, type DialerDb } from './dialer.js';
 import { LikhoApi, LikhoApiError } from './likho.js';
 import { describe, type Logger } from './log.js';
+import type { Metrics } from './metrics.js';
 import { type CallRow, State } from './state.js';
 
 export type FailureCode = 'not_found' | 'no_recording' | 'unavailable' | 'rejected' | 'error';
@@ -33,6 +34,8 @@ export interface ImportRequest {
 export interface ImporterOptions {
   source: string;
   phoneDigits: number;
+  /** Counts every call asked for, by outcome, and how long it took. */
+  metrics?: Metrics;
 }
 
 export class Importer {
@@ -46,6 +49,19 @@ export class Importer {
   ) {}
 
   async run(request: ImportRequest): Promise<Outcome> {
+    const started = Date.now();
+    const outcome = await this.fetchAndStore(request);
+    const metrics = this.options.metrics;
+    if (metrics) {
+      metrics.imports.add(1, {
+        outcome: outcome.ok ? (outcome.existing ? 'existing' : 'imported') : outcome.code,
+      });
+      metrics.importSeconds.record((Date.now() - started) / 1000);
+    }
+    return outcome;
+  }
+
+  private async fetchAndStore(request: ImportRequest): Promise<Outcome> {
     const { externalId, workspaceId } = request;
     const transcribe = request.transcribe ?? true;
 
@@ -70,6 +86,7 @@ export class Importer {
 
     const fetched = await this.ameyo.download(externalId);
     if (fetched.kind !== 'audio') return this.fail(request, fetched, details);
+    this.options.metrics?.downloadBytes.add(fetched.bytes.byteLength);
 
     const attributes = this.attributes(details);
     let uploaded;

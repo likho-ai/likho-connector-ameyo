@@ -53,6 +53,8 @@ Settings: `.env.development`, `.env.staging`, `.env.production` (read as the oth
 | --- | --- | --- |
 | `DATABASE_URL` | the local stack's `likho_connector` | The connector's own state: which calls were fetched, the cursor |
 | `NATS_URL`, `CONSUMER_GROUP`, `CONSUMERS_ENABLED` | the local stack's | The bus; off for a command-only use |
+| `NATS_CONNECT_TIMEOUT_SECONDS` | `120` | How long the start keeps trying to reach NATS before giving up |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | Also push the metrics there (OTLP/HTTP); `GET /metrics` (calls asked for by outcome and how long they took, bytes fetched, events handled) is always on |
 | `LIKHO_API_URL`, `LIKHO_API_KEY`, `WORKSPACE_ID`, `SOURCE` | `http://localhost:8080`, –, –, `ameyo` | Where the calls go; requests of another workspace or source are not this connector's |
 | `AMEYO_VOICELOG_URL`, `AMEYO_HASH_KEY`, `AMEYO_POLICY_NAME`, `AMEYO_REQUESTING_HOST`, `AMEYO_TIMEOUT_SECONDS` | –, 120 | The dialer's API |
 | `DIALER_DATABASE_URL`, `CALLS_QUERY_FILE`, `CALL_QUERY_FILE` | –, the examples | The dialer's reporting database and the two queries |

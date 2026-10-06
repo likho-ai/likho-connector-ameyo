@@ -33,6 +33,7 @@ export interface ImportRequest {
 
 export interface ImporterOptions {
   source: string;
+  /** Changes when the workspace's settings do (setPhoneDigits). */
   phoneDigits: number;
   /** Counts every call asked for, by outcome, and how long it took. */
   metrics?: Metrics;
@@ -47,6 +48,11 @@ export class Importer {
     private readonly options: ImporterOptions,
     private readonly log: Logger,
   ) {}
+
+  /** The digits of a phone number kept from now on (the workspace's settings changed). */
+  setPhoneDigits(digits: number): void {
+    this.options.phoneDigits = digits;
+  }
 
   async run(request: ImportRequest): Promise<Outcome> {
     const started = Date.now();

@@ -20,6 +20,15 @@ export const ConfigSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   /** /healthz and /readyz. */
   HTTP_PORT: z.coerce.number().int().min(0).max(65535).default(4060),
+  /** likho.dialer.v1: the dialer's campaigns, agents and calls, for likho-api. */
+  GRPC_PORT: z.coerce.number().int().min(0).max(65535).default(5060),
+  /**
+   * The zone of the dialer's clock (its call_time is written without a zone). Empty = TZ, else UTC.
+   * Windows asked for in UTC are turned into this clock before the queries run.
+   */
+  DIALER_TIMEZONE: z.string().default(''),
+  /** Read the schedule, policy, budget and write-back from the workspace's settings in likho-api. */
+  SETTINGS_FROM_LIKHO: flag.default(true),
 
   /** The connector's own state: which calls were fetched, the schedule's cursor. */
   DATABASE_URL: z
@@ -63,6 +72,10 @@ export const ConfigSchema = z.object({
   DIALER_DATABASE_URL: z.string().default(''),
   CALLS_QUERY_FILE: z.string().default('queries/calls.example.sql'),
   CALL_QUERY_FILE: z.string().default('queries/call.example.sql'),
+  /** The lists people choose from: the campaigns, the agents and the calls of a window (see src/lists.ts). */
+  CAMPAIGNS_LIST_QUERY_FILE: z.string().default('queries/campaigns.example.sql'),
+  AGENTS_QUERY_FILE: z.string().default('queries/agents.example.sql'),
+  WINDOW_QUERY_FILE: z.string().default('queries/window.example.sql'),
 
   /** The schedule: fetch new calls every so often, within a daily budget (one CPU is finite). */
   SCHEDULE_ENABLED: flag.default(false),
@@ -101,7 +114,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, cwd = process.c
     throw new Error('configuration: the schedule needs DIALER_DATABASE_URL (where the new calls are listed)');
   if (config.WRITEBACK_ENABLED && !config.CRM_DATABASE_URL)
     throw new Error('configuration: the write-back needs CRM_DATABASE_URL');
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: dialerZone(config) });
+  } catch {
+    throw new Error(`configuration: DIALER_TIMEZONE ${config.DIALER_TIMEZONE} is not a known zone`);
+  }
   return config;
+}
+
+/** The zone of the dialer's clock: DIALER_TIMEZONE, else TZ, else UTC. */
+export function dialerZone(config: Pick<Config, 'DIALER_TIMEZONE'>): string {
+  return config.DIALER_TIMEZONE || process.env.TZ || 'UTC';
 }
 
 /** The campaigns the policy takes, or an empty list for all. */

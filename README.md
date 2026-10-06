@@ -11,6 +11,8 @@ transcript goes back to the CRM.
 | Follows a schedule | Every few minutes, the new calls from the dialer's reporting database, judged by a policy (campaigns, shortest talk time), within a daily budget |
 | Writes back | On `likho.transcription.completed`, the Hinglish transcript into the CRM (MS SQL Server), when switched on |
 | Forgets | On `likho.recording.deleted`, the call may be fetched again |
+| Lists the dialer's calls | gRPC `likho.dialer.v1.DialerService` on `GRPC_PORT` (5060) for likho-api: the campaigns and agents of a window with their counts, the calls a page at a time, one call, and its own status - what people choose from in the web app |
+| Follows the admins | The schedule, the campaigns, the shortest talk time, the budget, the phone digits and the write-back come from the workspace's settings in Likho (Admin), read at start and again on `likho.settings.changed`; the `.env` values stand until Likho answers |
 
 Node 24, TypeScript, NATS JetStream, PostgreSQL (its own state), `pg` for the dialer's reporting
 database, `mssql` for the CRM.
@@ -60,7 +62,11 @@ Settings: `.env.development`, `.env.staging`, `.env.production` (read as the oth
 | `AMEYO_VOICELOG_URL`, `AMEYO_HASH_KEY`, `AMEYO_POLICY_NAME`, `AMEYO_REQUESTING_HOST`, `AMEYO_TIMEOUT_SECONDS` | –, 120 | The dialer's live voice-log API (the last week or two of recordings) |
 | `AMEYO_ARCHIVAL_URL`, `AMEYO_ARCHIVAL_FILE_ID` | –, `123` | The voice-log archiver, asked by the leg's `call_id` (from the dialer's database) when the live server has no recording; the recording's `audioFrom` attribute says `live` or `archive`. Empty = not looked for |
 | `DIALER_DATABASE_URL`, `CALLS_QUERY_FILE`, `CALL_QUERY_FILE` | –, the examples | The dialer's reporting database and the two queries |
-| `SCHEDULE_ENABLED`, `POLL_INTERVAL_SECONDS`, `BATCH_LIMIT`, `DAILY_LIMIT`, `SCHEDULE_START` | off, 300, 50, 200, '' | The schedule and its budget; `SCHEDULE_START` is the `call_time` text it begins at |
+| `CAMPAIGNS_LIST_QUERY_FILE`, `AGENTS_QUERY_FILE`, `WINDOW_QUERY_FILE` | the examples | The lists: campaigns, agents and the calls of a window (columns in [src/lists.ts](src/lists.ts)) |
+| `DIALER_TIMEZONE` | `TZ`, else UTC | The zone of the dialer's clock: a window asked for in UTC is turned into it |
+| `GRPC_PORT` | 5060 | The lists for likho-api |
+| `SETTINGS_FROM_LIKHO` | true | Take the schedule, policy, budget and write-back from the workspace's settings in Likho; false = the `.env` values only |
+| `SCHEDULE_ENABLED`, `POLL_INTERVAL_SECONDS`, `BATCH_LIMIT`, `DAILY_LIMIT`, `SCHEDULE_START` | off, 300, 50, 200, '' | The schedule and its budget (from Likho's settings when `SETTINGS_FROM_LIKHO`); `SCHEDULE_START` is the `call_time` text it begins at |
 | `CAMPAIGNS`, `MIN_TALK_SECONDS`, `PHONE_DIGITS` | all, 20, 4 | The policy; how many digits of a phone number are kept |
 | `WRITEBACK_ENABLED`, `CRM_DATABASE_URL`, `WRITEBACK_QUERY_FILE` | off, –, the example | The transcript back into the CRM |
 

@@ -70,6 +70,7 @@ export function testConfig(db: TestDb, overrides: Partial<Config> = {}): Config 
     DATABASE_URL: db.url,
     CONSUMER_GROUP: db.schema,
     HTTP_PORT: 0,
+    GRPC_PORT: 0,
     LIKHO_API_KEY: 'lk_test',
     WORKSPACE_ID: 'wsp_01TEST0000000000000000000A',
     // Requests of earlier test runs are still in the shared stream; a source of its own keeps them out.

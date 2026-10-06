@@ -76,6 +76,22 @@ export class LikhoApi {
     return parsed as T;
   }
 
+  /** The workspace's settings: what the admins set for the dialer connector. */
+  async settings(): Promise<{
+    dialer: {
+      scheduleEnabled: boolean;
+      campaigns: string[];
+      minTalkSeconds: number;
+      dailyLimit: number;
+      batchLimit: number;
+      pollIntervalSeconds: number;
+      phoneDigits: number;
+      writebackEnabled: boolean;
+    };
+  }> {
+    return this.call('GET', '/api/v1/settings');
+  }
+
   /** Makes the recording and sends the audio to likho-media; a duplicate reuses the earlier recording. */
   async upload(input: {
     originalName: string;

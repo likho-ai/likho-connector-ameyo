@@ -29,6 +29,8 @@ export interface RunReport {
 
 export class Schedule {
   private running = false;
+  /** The last pass, for the status. */
+  last: { at: Date; report: RunReport } | null = null;
 
   constructor(
     private readonly dialer: DialerDb,
@@ -55,6 +57,7 @@ export class Schedule {
     const budget = Math.max(0, this.options.dailyLimit - today);
     const report: RunReport = { seen: 0, taken: 0, skipped: 0, failed: 0, cursor, budgetLeft: budget };
     if (budget === 0) {
+      this.last = { at: new Date(), report };
       this.log.info('daily budget used up; waiting for tomorrow', {
         imported: today,
         limit: this.options.dailyLimit,
@@ -97,6 +100,7 @@ export class Schedule {
     }
     report.budgetLeft = budget - report.taken;
     this.log.info('schedule ran', { ...report });
+    this.last = { at: new Date(), report };
     return report;
   }
 

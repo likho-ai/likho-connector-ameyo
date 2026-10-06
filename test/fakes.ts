@@ -99,6 +99,20 @@ export class FakeLikho {
   jobs: string[] = [];
   transcripts = new Map<string, { textRoman: string; textScript: string }[]>();
   keys = new Set<string>(['lk_test']);
+  /** What GET /api/v1/settings answers: the workspace's dialer settings. */
+  settings = {
+    dialer: {
+      scheduleEnabled: false,
+      campaigns: [] as string[],
+      minTalkSeconds: 20,
+      dailyLimit: 200,
+      batchLimit: 50,
+      pollIntervalSeconds: 300,
+      phoneDigits: 4,
+      writebackEnabled: false,
+    },
+  };
+  settingsAsked = 0;
   counter = 0;
   server!: Server;
   url = '';
@@ -135,6 +149,11 @@ export class FakeLikho {
     const key = (request.headers.authorization ?? '').replace('Bearer ', '');
     if (!this.keys.has(key)) {
       this.json(response, 401, { error: { code: 'unauthenticated', message: 'Sign in first.' } });
+      return;
+    }
+    if (request.method === 'GET' && path === '/api/v1/settings') {
+      this.settingsAsked += 1;
+      this.json(response, 200, this.settings);
       return;
     }
     if (request.method === 'POST' && path === '/api/v1/recordings') {

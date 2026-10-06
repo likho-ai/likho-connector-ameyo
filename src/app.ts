@@ -95,6 +95,7 @@ export class App {
   private stopSchedule: (() => void) | null = null;
   private writeBack: WriteBack | null = null;
   private settings: LiveSettings;
+  private settingsRetry: ReturnType<typeof setInterval> | null = null;
 
   private constructor(
     private readonly config: Config,
@@ -134,6 +135,18 @@ export class App {
     const { config, log, parts } = this;
     await this.bus.connect(config.NATS_CONNECT_TIMEOUT_SECONDS);
     await this.reloadSettings('start');
+    // Likho may start after the connector: until its settings are read, ask again every 30 s.
+    if (config.SETTINGS_FROM_LIKHO && config.LIKHO_API_KEY && this.settings.from === 'env') {
+      this.settingsRetry = setInterval(() => {
+        void this.reloadSettings('retry').then(() => {
+          if (this.settings.from === 'likho' && this.settingsRetry) {
+            clearInterval(this.settingsRetry);
+            this.settingsRetry = null;
+            this.log.info('the settings were read from Likho', { schedule: this.settings.scheduleEnabled });
+          }
+        });
+      }, config.SETTINGS_RETRY_SECONDS * 1000);
+    }
 
     if (config.CONSUMERS_ENABLED) {
       await this.bus.consume({
@@ -226,16 +239,20 @@ export class App {
    * the schedule is started, stopped or started again with the new policy; the write-back is
    * opened or closed; the phone digits change for the next call.
    */
-  async reloadSettings(why: 'start' | 'changed'): Promise<void> {
+  async reloadSettings(why: 'start' | 'changed' | 'retry'): Promise<void> {
     const { config, log, parts } = this;
     let next = this.settings;
     if (config.SETTINGS_FROM_LIKHO && config.LIKHO_API_KEY) {
       try {
         next = await fromLikho(parts.likho);
       } catch (error) {
-        log.warn('the settings could not be read from Likho; the ones in force stand', {
-          error: describe(error),
-        });
+        (why === 'retry' ? log.debug : log.warn).call(
+          log,
+          'the settings could not be read from Likho; the ones in force stand',
+          {
+            error: describe(error),
+          },
+        );
         if (why === 'changed') throw error; // the event is delivered again later
       }
     }
@@ -357,6 +374,7 @@ export class App {
   }
 
   async stop(): Promise<void> {
+    if (this.settingsRetry) clearInterval(this.settingsRetry);
     this.stopSchedule?.();
     await new Promise<void>((resolve) => (this.server ? this.server.close(() => resolve()) : resolve()));
     await new Promise<void>((resolve) => (this.rpc ? this.rpc.close(() => resolve()) : resolve()));

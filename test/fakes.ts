@@ -113,6 +113,8 @@ export class FakeLikho {
     },
   };
   settingsAsked = 0;
+  /** While true, the settings answer 503 (likho-api still starting). */
+  settingsDown = false;
   counter = 0;
   server!: Server;
   url = '';
@@ -153,6 +155,10 @@ export class FakeLikho {
     }
     if (request.method === 'GET' && path === '/api/v1/settings') {
       this.settingsAsked += 1;
+      if (this.settingsDown) {
+        this.json(response, 503, { error: { code: 'service_unavailable', message: 'starting' } });
+        return;
+      }
       this.json(response, 200, this.settings);
       return;
     }

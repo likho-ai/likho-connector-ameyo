@@ -214,4 +214,30 @@ describe.skipIf(!stackUp)('the dialer’s lists and the live settings', () => {
     const { calls } = await client.listCalls({ window: day, limit: 1 });
     expect(calls[0]!.phone).toBe('…10');
   });
+
+  it('asks Likho again until it answers, when it was not there at the start', async () => {
+    const late = await new FakeLikho().start();
+    late.settingsDown = true;
+    late.settings.dialer = { ...late.settings.dialer, dailyLimit: 33 };
+    const second = await App.start(
+      testConfig(db, {
+        LIKHO_API_URL: late.url,
+        CONSUMER_GROUP: `${db.schema}-late`,
+        SETTINGS_RETRY_SECONDS: 1,
+      }),
+      silent,
+    );
+    try {
+      expect(second.current().from).toBe('env');
+      late.settingsDown = false;
+      const deadline = Date.now() + 10_000;
+      while (second.current().from !== 'likho' && Date.now() < deadline)
+        await new Promise((r) => setTimeout(r, 100));
+      expect(second.current()).toMatchObject({ from: 'likho', dailyLimit: 33 });
+    } finally {
+      await second.events.forget();
+      await second.stop();
+      await late.close();
+    }
+  });
 });

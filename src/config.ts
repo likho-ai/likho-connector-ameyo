@@ -29,6 +29,8 @@ export const ConfigSchema = z.object({
   DIALER_TIMEZONE: z.string().default(''),
   /** Read the schedule, policy, budget and write-back from the workspace's settings in likho-api. */
   SETTINGS_FROM_LIKHO: flag.default(true),
+  /** While Likho has not answered yet, how often its settings are asked for again. */
+  SETTINGS_RETRY_SECONDS: z.coerce.number().int().min(1).default(30),
 
   /** The connector's own state: which calls were fetched, the schedule's cursor. */
   DATABASE_URL: z

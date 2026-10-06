@@ -67,7 +67,29 @@ export class Importer {
     return outcome;
   }
 
-  private async fetchAndStore(request: ImportRequest): Promise<Outcome> {
+  private async fetchAndStore(asked: ImportRequest): Promise<Outcome> {
+    let request = asked;
+    let details = request.details ?? null;
+    if (!details && this.dialer) {
+      try {
+        details = await this.dialer.call(request.externalId);
+        if (!details) {
+          // Not an interaction the dialer knows: perhaps one leg's call_id (what reports show).
+          // The recording is filed under the interaction, so fetch that.
+          const crt = await this.dialer.crtOfCall(request.externalId);
+          if (crt) {
+            this.log.info('a call id: fetching its interaction', { call: request.externalId, crt });
+            request = { ...request, externalId: crt };
+            details = await this.dialer.call(crt);
+          }
+        }
+      } catch (error) {
+        this.log.warn('the dialer’s database did not answer; fetching without details', {
+          call: request.externalId,
+          error: describe(error),
+        });
+      }
+    }
     const { externalId, workspaceId } = request;
     const transcribe = request.transcribe ?? true;
 
@@ -76,18 +98,6 @@ export class Importer {
     if (earlier?.status === 'imported' && earlier.recordingId) {
       if (transcribe) await this.transcribeIfIdle(earlier.recordingId);
       return { ok: true, recordingId: earlier.recordingId, existing: true, call: earlier };
-    }
-
-    let details = request.details ?? null;
-    if (!details && this.dialer) {
-      try {
-        details = await this.dialer.call(externalId);
-      } catch (error) {
-        this.log.warn('the dialer’s database did not answer; fetching without details', {
-          call: externalId,
-          error: describe(error),
-        });
-      }
     }
 
     let fetched = await this.ameyo.download(externalId);

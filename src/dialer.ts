@@ -12,6 +12,8 @@
  *
  * calls.sql takes $1 = the cursor (the call_time the last batch ended at) and $2 = the batch
  * size, and returns calls after the cursor, oldest first. call.sql takes $1 = a crt_object_id.
+ * crt.sql takes $1 = one leg's call_id and returns its interaction's crt_object_id (one column, one
+ * row): reports show call ids, and the recording is filed under the interaction.
  */
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
@@ -79,14 +81,22 @@ export function maskPhone(phone: string, digits: number): string {
 export interface DialerDb {
   callsSince(cursor: string, limit: number): Promise<CallRecord[]>;
   call(crtObjectId: string): Promise<CallRecord | null>;
+  /** The interaction (crt_object_id) a leg's call_id belongs to, or null. */
+  crtOfCall(callId: string): Promise<string | null>;
   close(): Promise<void>;
 }
 
-/** Opens the dialer's database with the two queries read from their files. */
-export function openDialerDb(url: string, callsQueryFile: string, callQueryFile: string): DialerDb {
+/** Opens the dialer's database with the queries read from their files. */
+export function openDialerDb(
+  url: string,
+  callsQueryFile: string,
+  callQueryFile: string,
+  crtQueryFile: string,
+): DialerDb {
   const pool = new pg.Pool({ connectionString: url, max: 2, statement_timeout: 60_000 });
   const callsQuery = readFileSync(callsQueryFile, 'utf8');
   const callQuery = readFileSync(callQueryFile, 'utf8');
+  const crtQuery = readFileSync(crtQueryFile, 'utf8');
   return {
     async callsSince(cursor, limit) {
       const result = await pool.query(callsQuery, [cursor, limit]);
@@ -98,6 +108,11 @@ export function openDialerDb(url: string, callsQueryFile: string, callQueryFile:
       const result = await pool.query(callQuery, [crtObjectId]);
       const row = result.rows[0];
       return row ? toCall(row as Record<string, unknown>) : null;
+    },
+    async crtOfCall(callId) {
+      const result = await pool.query(crtQuery, [callId]);
+      const value = result.rows[0] ? Object.values(result.rows[0])[0] : null;
+      return value ? String(value).trim() || null : null;
     },
     close: () => pool.end(),
   };

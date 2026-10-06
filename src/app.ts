@@ -51,7 +51,12 @@ export async function assemble(config: Config, log: Logger, fetchImpl?: typeof f
     fetchImpl,
   });
   const dialer = config.DIALER_DATABASE_URL
-    ? openDialerDb(config.DIALER_DATABASE_URL, config.CALLS_QUERY_FILE, config.CALL_QUERY_FILE)
+    ? openDialerDb(
+        config.DIALER_DATABASE_URL,
+        config.CALLS_QUERY_FILE,
+        config.CALL_QUERY_FILE,
+        config.CRT_QUERY_FILE,
+      )
     : null;
   const lists = config.DIALER_DATABASE_URL
     ? openDialerLists(config.DIALER_DATABASE_URL, {

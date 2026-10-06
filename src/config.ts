@@ -74,6 +74,8 @@ export const ConfigSchema = z.object({
   DIALER_DATABASE_URL: z.string().default(''),
   CALLS_QUERY_FILE: z.string().default('queries/calls.example.sql'),
   CALL_QUERY_FILE: z.string().default('queries/call.example.sql'),
+  /** A leg's call_id to its interaction's crt_object_id (people paste call ids from reports). */
+  CRT_QUERY_FILE: z.string().default('queries/crt.example.sql'),
   /** The lists people choose from: the campaigns, the agents and the calls of a window (see src/lists.ts). */
   CAMPAIGNS_LIST_QUERY_FILE: z.string().default('queries/campaigns.example.sql'),
   AGENTS_QUERY_FILE: z.string().default('queries/agents.example.sql'),

@@ -36,6 +36,9 @@ function dialerWith(calls: CallRecord[]): DialerDb {
     async call(id) {
       return calls.find((c) => c.crtObjectId === id) ?? null;
     },
+    async crtOfCall(callId) {
+      return calls.find((c) => c.callId === callId)?.crtObjectId ?? null;
+    },
     async close() {},
   };
 }
@@ -57,7 +60,10 @@ describe.skipIf(!stackUp)('fetching a call into Likho', () => {
       new AmeyoClient({ baseUrl: dialer.url, timeoutMs: 5_000 }),
       new LikhoApi(likho.url, 'lk_test'),
       state,
-      dialerWith([call('d000-0a1b2c3d-vce-0001', { extra: { lead_source: 'tv' } })]),
+      dialerWith([
+        call('d000-0a1b2c3d-vce-0001', { extra: { lead_source: 'tv' } }),
+        call('d000-0a1b2c3d-vce-0011', { callId: 'd000-0a1b2c3d-vcall-0011', campaign: 'Sales' }),
+      ]),
       { source: 'ameyo', phoneDigits: 4 },
       silent,
     );
@@ -109,6 +115,27 @@ describe.skipIf(!stackUp)('fetching a call into Likho', () => {
     expect(again).toMatchObject({ ok: true, existing: true, recordingId: recording.id });
     expect(dialer.asked).toHaveLength(0);
     expect(likho.jobs).toEqual([recording.id]);
+  });
+
+  it('takes a leg’s call id as well, and fetches the interaction it belongs to', async () => {
+    dialer.answers.set('d000-0a1b2c3d-vce-0011', { body: Uint8Array.from([...MP3, 7, 7]) }); // audio of its own
+    dialer.asked.length = 0;
+    const outcome = await importer.run({
+      externalId: 'd000-0a1b2c3d-vcall-0011',
+      workspaceId: WORKSPACE,
+      requestedBy: 'imp_11',
+    });
+    expect(outcome).toMatchObject({ ok: true, existing: false });
+    expect(dialer.asked.map((a) => a.id)).toEqual(['d000-0a1b2c3d-vce-0011']); // never by the call id
+    const recording = likho.recordings.find((r) => r.externalId === 'd000-0a1b2c3d-vce-0011')!;
+    expect(recording).toMatchObject({
+      originalName: 'd000-0a1b2c3d-vce-0011.mp3',
+      attributes: { campaign: 'Sales' },
+    });
+    expect(await state.call('d000-0a1b2c3d-vce-0011')).toMatchObject({
+      status: 'imported',
+      recordingId: recording.id,
+    });
   });
 
   it('asks the archiver by the leg’s id when the live server has no recording any more', async () => {

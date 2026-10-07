@@ -328,7 +328,7 @@ packages:
     resolution: {integrity: sha512-39os1Z9zTxmvRCui90qirNsLYo9s/IJOQZD7dxBju1iOJyRviWmSk+/9HDFJf8jEogjFmY0aplZIdJsErdkTgw==}
 
   '@likho-ai/contracts@https://github.com/likho-ai/likho-contracts/releases/download/v0.13.0/likho-ai-contracts-0.13.0.tgz':
-    resolution: {tarball: https://github.com/likho-ai/likho-contracts/releases/download/v0.13.0/likho-ai-contracts-0.13.0.tgz}
+    resolution: {integrity: sha512-jKBZvp0dJBZ5HLY924DiOjM5wCRVfaplRIfkI2DArJMez9HW+C9Xz/66vIRM8dtx1VvFy7koKmTn/HQCzAQN3w==, tarball: https://github.com/likho-ai/likho-contracts/releases/download/v0.13.0/likho-ai-contracts-0.13.0.tgz}
     version: 0.13.0
     peerDependencies:
       '@bufbuild/protobuf': ^2.2.0
